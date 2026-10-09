@@ -195,7 +195,7 @@
             </div>
 
             <div class="player-card-box" id="card_section" style="display: none;">
-                <div class="bidding-timer-badge" id="biddingTimerText">🔥 BIDDING LIVE: 15s...</div>
+                <div class="bidding-timer-badge" id="biddingTimerText">🔥 BIDDING LIVE: 15...</div>
 
                 <img id="card_img" class="card-photo" src="https://via.placeholder.com/150" alt="Player">
                 <h2 id="card_name">Player Name</h2>
@@ -289,7 +289,7 @@
 
         function updateOwnerLoginDropdown() {
             const select = document.getElementById('modal_team_select');
-            if(select) { select.innerHTML = appData.teams.map(t => `<option value="${t.name}">${t.name} (Owner: ${t.owner})</option>`).join(''); }
+            if(select) { select.innerHTML = appData.teams.map(t => `<option value="${t.name}">${t.name} (Owner:${t.owner})</option>`).join(''); }
         }
 
         function verifyOwnerLogin() {
@@ -405,158 +405,10 @@
             const pBody = document.getElementById('playersTableBody');
             if(pBody) pBody.innerHTML = appData.players.map((p, i) => `
                 <tr><td><img src="${p.photo}" class="player-img"></td><td><b>${p.name}</b></td><td>${p.skill}</td>
-                    <td>${p.basePoint} Pts</td><td>+${p.stepPoint || 5} Pts</td><td>${p.status}</td>
+                    <td>${p.basePoint} Pts</td><td>+${p.stepPoint \vert{}\vert{} 5} Pts</td><td>${p.status}</td>
                     <td><button class="btn btn-red" onclick="deletePlayer('${p.id}')">Delete</button></td></tr>`).join('');
             const tBody = document.getElementById('teamsTableBody'); const select = document.getElementById('sold_team_select');
             if(tBody) { const currentUrl = window.location.href.split('?')[0];
                 tBody.innerHTML = appData.teams.map((t, i) => { const ownerLink = `${currentUrl}?mode=owner`; return `<tr>
                         <td>${t.name}</td><td>${t.owner}</td><td>${t.budget} Pts</td>
-                        <td><code style="background:#0f172a; padding:4px 8px; color:#38bdf8; border-radius:4px;">${t.accessCode}</code></td>
-                        <td>${appData.players.filter(p => p.soldTo === t.name).length} / ${t.maxPlayers}</td>
-                        <td>
-                            <button class="btn btn-blue" onclick="editTeam(${i})">Edit</button>
-                            <button class="btn btn-green" onclick="navigator.clipboard.writeText('${ownerLink}'); alert('Owner Link Copied!');">Copy Link</button>
-                            <button class="btn btn-red" onclick="deleteTeam(${i})">Delete</button>
-                        </td>
-                    </tr>`; }).join('');
-            }
-            if(select) select.innerHTML = appData.teams.map(t => `<option value="${t.name}">${t.name} (Bal: ${t.budget} Pts)</option>`).join('');
-        }
-        function deletePlayer(id) { tournamentRef.collection("players").doc(id).delete(); }
-
-        let startAngle = 0;
-        function drawWheel() {
-            const canvas = document.getElementById('wheelCanvas'); if(!canvas) return;
-            const ctx = canvas.getContext('2d'); const visiblePlayers = getActivePlayerPool();
-            ctx.clearRect(0,0,340,340);
-            if(visiblePlayers.length === 0) {
-                ctx.fillStyle = "#94a3b8"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
-                ctx.fillText("All Players Processed!", 170, 170); return;
-            }
-            const arc = Math.PI / (visiblePlayers.length / 2);
-            const colors = ['#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#10b981', '#06b6d4'];
-            visiblePlayers.forEach((p, i) => {
-                const angle = startAngle + i * arc;
-                ctx.fillStyle = colors[i % colors.length];
-                ctx.beginPath(); ctx.arc(170, 170, 160, angle, angle + arc, false);
-                ctx.arc(170, 170, 25, angle + arc, angle, true); ctx.fill();
-                ctx.save(); ctx.fillStyle = "#fff"; ctx.font = "bold 13px Segoe UI";
-                ctx.translate(170 + Math.cos(angle + arc/2) * 100, 170 + Math.sin(angle + arc/2) * 100);
-                ctx.rotate(angle + arc/2 + Math.PI/2);
-                ctx.fillText(p.name, -ctx.measureText(p.name).width / 2, 0); ctx.restore();
-            });
-        }
-        function spinWheel() {
-            const activePool = getActivePlayerPool();
-            if(activePool.length === 0) return alert("All players processed!");
-            const targetPlayer = activePool[Math.floor(Math.random() * activePool.length)];
-            document.getElementById('sold_banner').style.display = 'none';
-            document.getElementById('unsold_banner').style.display = 'none';
-            if(isUserAdmin) document.getElementById('bidding_controls').style.display = 'flex';
-            let spinSpeed = 0.8; let spinTime = 0; let spinTimeTotal = 1500;
-            function rotate() {
-                spinTime += 20;
-                if(spinTime >= spinTimeTotal) { showPlayerCard(targetPlayer); return; }
-                startAngle += spinSpeed; spinSpeed *= 0.98; drawWheel(); setTimeout(rotate, 20);
-            }
-            rotate();
-        }
-
-        let countdownInterval;
-        function showPlayerCard(p) {
-            selectedPlayerIndex = appData.players.findIndex(x => x.name === p.name);
-            currentBid = p.basePoint;
-            document.getElementById('card_img').src = p.photo;
-            document.getElementById('card_name').innerText = p.name;
-            document.getElementById('card_skill').innerText = "Role: " + p.skill;
-            document.getElementById('card_base').innerText = "Base Price: " + p.basePoint + " Pts";
-            document.getElementById('card_jersey_details').innerText = `Jersey: ${p.jerseyName} (#${p.jerseyNumber}) | Size: ${p.jerseySize}`;
-            document.getElementById('card_bid').innerText = currentBid + " Pts";
-            document.getElementById('wheel_section').style.display = 'none';
-            document.getElementById('card_section').style.display = 'flex';
-
-            let count = 15; // Set to 15 seconds
-            const timerElem = document.getElementById('biddingTimerText');
-            timerElem.innerHTML = `🔥 BIDDING LIVE: ${count}s...`;
-            
-            clearInterval(countdownInterval);
-            countdownInterval = setInterval(() => {
-                count--;
-                if(count > 0) {
-                    timerElem.innerHTML = `🔥 BIDDING LIVE: ${count}s...`;
-                } else {
-                    timerElem.innerHTML = `⚡ GOING ONCE, TWICE...`;
-                    clearInterval(countdownInterval);
-                }
-            }, 1000);
-            logPlayerOpened(p);
-        }
-
-        function logPlayerOpened(player) {
-            if(!isUserAdmin) return;
-            appData.auditLog.unshift({ turn: appData.currentTurn, time: new Date().toLocaleTimeString(), name: player.name, skill: player.skill, status: 'OPENED' });
-            saveMetaToDB();
-        }
-        function adjustBid(multiplier) {
-            if(!isUserAdmin || selectedPlayerIndex === -1) return;
-            const step = parseInt(document.getElementById('bid_increment').value) || 1;
-            currentBid = Math.max(appData.players[selectedPlayerIndex].basePoint, currentBid + (step * multiplier));
-            document.getElementById('card_bid').innerText = currentBid + " Pts";
-        }
-        function sellPlayer() {
-            if(!isUserAdmin || selectedPlayerIndex === -1) return;
-            const teamName = document.getElementById('sold_team_select').value;
-            const team = appData.teams.find(t => t.name === teamName);
-            if(!team) return alert("Select valid team!");
-            if(team.budget < currentBid) return alert(`${teamName} doesn't have enough budget!`);
-            team.budget -= currentBid;
-            const player = appData.players[selectedPlayerIndex];
-            player.status = 'SOLD'; player.soldTo = teamName; player.soldPrice = currentBid;
-            appData.currentTurn += 1;
-            savePlayerToDB(player); saveMetaToDB();
-            const banner = document.getElementById('sold_banner');
-            banner.innerText = `🎉 SOLD TO ${teamName.toUpperCase()} FOR ${currentBid} PTS!`;
-            banner.style.display = 'block'; document.getElementById('bidding_controls').style.display = 'none';
-            resetAuctionView();
-        }
-        function unsellPlayer() {
-            if(!isUserAdmin || selectedPlayerIndex === -1) return;
-            const player = appData.players[selectedPlayerIndex];
-            player.status = 'UNSOLD'; appData.currentTurn += 1;
-            savePlayerToDB(player); saveMetaToDB();
-            document.getElementById('unsold_banner').style.display = 'block';
-            document.getElementById('bidding_controls').style.display = 'none';
-            resetAuctionView();
-        }
-        function resetAuctionView() {
-            clearInterval(countdownInterval);
-            setTimeout(() => {
-                document.getElementById('card_section').style.display = 'none';
-                document.getElementById('wheel_section').style.display = 'flex';
-                selectedPlayerIndex = -1; updateTurnDisplay(); drawWheel();
-            }, 2000);
-        }
-        function renderAuditLog() {
-            const body = document.getElementById('auditTableBody');
-            if(body) body.innerHTML = appData.auditLog.map(l => `<tr><td>#${l.turn}</td><td>${l.time}</td><td><b>${l.name}</b></td><td>${l.skill}</td><td>${l.status}</td></tr>`).join('');
-        }
-        function exportTeamWisePDF() {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF();
-            doc.text("Cricket Tournament - Team Report", 14, 20); doc.save("Report.pdf");
-        }
-        function exportTeamWiseExcel() {
-            const workbook = XLSX.utils.book_new(); const sheet = XLSX.utils.json_to_sheet(appData.teams);
-            XLSX.utils.book_append_sheet(workbook, sheet, "Teams"); XLSX.writeFile(workbook, "Report.xlsx");
-        }
-        function exportPPT() { let pptx = new PptxGenJS(); pptx.writeFile({ fileName: "Report.pptx" }); }
-        async function resetTournament() {
-            if(confirm("Reset all data?")) {
-                const snapshot = await tournamentRef.collection("players").get();
-                snapshot.forEach(doc => doc.ref.delete());
-                appData = { players: [], teams: [], auditLog: [], currentTurn: 1 };
-                saveMetaToDB();
-            }
-        }
-    </script>
-</body>
-</html>
+                        <td><code style="background
